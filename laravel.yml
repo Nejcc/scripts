@@ -1,0 +1,66 @@
+name: my-laravel-app
+
+# The recipe to use for this Lando app
+recipe: laravel
+
+# Lando configuration
+config:
+  # The PHP version to use
+  php: '8.2'
+
+  # The database service to use
+  database: mariadb:10.5
+
+  # The Node.js version to use
+  node: '16'
+
+  # Additional composer packages to install globally
+  composer_packages_global:
+    - laravel/installer
+    - friendsofphp/php-cs-fixer
+
+  # Additional npm packages to install globally
+  npm_packages_global:
+    - laravel-mix
+    - vue
+
+  # Specify the webroot
+  webroot: .
+
+# Services definition
+services:
+  appserver:
+    type: php:8.2
+    webroot: .
+    ssl: true
+
+  database:
+    type: mariadb:10.5
+    portforward: true
+
+  node:
+    type: node:16
+
+# Proxy settings
+proxy:
+  appserver:
+    - my-laravel-app.lndo.site
+
+# Tooling configuration
+tooling:
+  composer:
+    service: appserver
+  npm:
+    service: node
+  artisan:
+    service: appserver
+
+# Events definition
+events:
+  post-start:
+    - composer install
+    - php artisan key:generate
+    - php artisan migrate
+    - php artisan db:seed
+    - npm install
+    - npm run dev
