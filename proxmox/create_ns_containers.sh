@@ -65,10 +65,14 @@ main() {
     read -rp "Enter the nameserver prefix (e.g., lb): " PREFIX
     read -rp "Enter the number of containers to create: " NUM_CONTAINERS
     read -rp "Enter the domain name (e.g., .local): " DOMAIN
-    read -rp "Enter the number of cores for each container: " CORES
-    read -rp "Enter the RAM size in MB for each container: " RAM
-    read -rp "Enter the SWAP size in MB for each container: " SWAP
-    read -rp "Enter the disk size for each container (e.g., 10G): " DISK_SIZE
+    read -rp "Enter the number of cores for each container (default 2): " CORES
+    CORES=${CORES:-2}
+    read -rp "Enter the RAM size in MB for each container (default 2048): " RAM
+    RAM=${RAM:-2048}
+    read -rp "Enter the SWAP size in MB for each container (default 512): " SWAP
+    SWAP=${SWAP:-512}
+    read -rp "Enter the disk size for each container (default 20G): " DISK_SIZE
+    DISK_SIZE=${DISK_SIZE:-20G}
     read -rp "Enter the storage pool (e.g., local-lvm): " STORAGE
     read -rp "Should the containers start at boot? (yes/no): " START_AT_BOOT
     read -rp "Enter the initial template ID: " INITIAL_TEMPLATE_ID
