@@ -1,9 +1,3 @@
-#!/bin/bash
-
-# Variables
-BRIDGE="vmbr0"     # Network bridge to use
-CONFIG_FILE="ct_config.txt"
-
 # Function to create a container
 create_container() {
     local CTID=$1
@@ -19,7 +13,7 @@ create_container() {
     local STORAGE=${11}
 
     echo "Creating container $CTID with hostname $HOSTNAME and IP $IP using template $TEMPLATE_ID..."
-    echo "Command: pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password $PASSWORD --onboot $START_AT_BOOT --start 1"
+    echo "Command: pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password <hidden> --onboot $START_AT_BOOT --start 1"
 
     pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP \
         --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE \
@@ -30,30 +24,6 @@ create_container() {
     else
         echo "Failed to create container $CTID. Please check the Proxmox logs for more details."
         exit 1
-    fi
-}
-
-# Function to save the configuration
-save_configuration() {
-    echo "$1" >> $CONFIG_FILE
-}
-
-# Function to load the configuration
-load_configuration() {
-    if [ -f $CONFIG_FILE ]; then
-        echo "Found existing configuration file."
-        read -rp "Do you want to use the existing configuration? (yes/no): " USE_EXISTING_CONFIG
-
-        if [[ "$USE_EXISTING_CONFIG" == "yes" ]]; then
-            while IFS= read -r line; do
-                create_container $line
-            done < $CONFIG_FILE
-            echo "All containers created successfully using existing configuration!"
-            exit 0
-        else
-            rm -f $CONFIG_FILE
-            echo "Starting from scratch..."
-        fi
     fi
 }
 
@@ -100,6 +70,8 @@ main() {
 
     TEMPLATE_ID=$INITIAL_TEMPLATE_ID
 
+    CONFIG_SUMMARY="Configuration Summary:\n"
+
     for ((i=1; i<=NUM_CONTAINERS; i++)); do
         # Generate the CT ID, hostname, and IP address
         CTID=$((100 + i))
@@ -119,6 +91,9 @@ main() {
         # Save the configuration
         save_configuration "$CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID $STORAGE"
 
+        # Append to the configuration summary
+        CONFIG_SUMMARY+="CTID: $CTID, Hostname: $HOSTNAME, IP: $IP, Cores: $CORES, RAM: $RAM MB, SWAP: $SWAP MB, Disk: $DISK_SIZE, Storage: $STORAGE, Start at boot: $START_AT_BOOT, Template ID: $TEMPLATE_ID\n"
+
         # Create the container
         create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID $STORAGE
 
@@ -131,6 +106,7 @@ main() {
         fi
     done
 
+    echo -e "$CONFIG_SUMMARY"
     echo "All containers created successfully!"
 }
 
