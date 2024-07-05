@@ -15,16 +15,15 @@ create_container() {
     local SWAP=$7
     local DISK_SIZE=$8
     local START_AT_BOOT=$9
-    local TEMPLATE_ID=${10}
+    local TEMPLATE=${10}
     local STORAGE=${11}
-    local TEMPLATE=${12}
 
-    echo "Creating container $CTID with hostname $HOSTNAME and IP $IP using template $TEMPLATE_ID..."
-    echo "Command: pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password <hidden> --onboot $START_AT_BOOT --start 1"
+    echo "Creating container $CTID with hostname $HOSTNAME and IP $IP using template $TEMPLATE..."
+    echo "Command: pct create $CTID local:vztmpl/$TEMPLATE --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password <hidden> --onboot $START_AT_BOOT --start 1"
 
-    pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP \
+    pct create $CTID local:vztmpl/$TEMPLATE --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP \
         --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE \
-        --password $PASSWORD --onboot $START_AT_BOOT --start 1 --template $TEMPLATE
+        --password $PASSWORD --onboot $START_AT_BOOT --start 1
 
     if [ $? -eq 0 ]; then
         echo "Container $CTID created successfully!"
@@ -149,7 +148,7 @@ main() {
         CONFIG_SUMMARY+="\nCTID: $CTID\nHostname: $HOSTNAME\nIP: $IP\nCores: $CORES\nRAM: $RAM MB\nSWAP: $SWAP MB\nDisk: $DISK_SIZE\nStorage: $STORAGE\nStart at boot: $START_AT_BOOT\nTemplate ID: $TEMPLATE_ID\nTemplate: $TEMPLATE\n"
 
         # Create the container
-        create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID $STORAGE $TEMPLATE
+        create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE $STORAGE
 
         # Auto-increment the template ID if needed
         if [[ "$AUTO_INCREMENT_TEMPLATE_ID" == "yes" ]]; then
