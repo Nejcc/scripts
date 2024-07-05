@@ -19,11 +19,10 @@ create_container() {
     local STORAGE=${11}
 
     echo "Creating container $CTID with hostname $HOSTNAME and IP $IP using template $TEMPLATE..."
-    echo "Command: pct create $CTID --ostemplate local:vztmpl/$TEMPLATE --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password <hidden> --onboot $START_AT_BOOT --start 1"
+    echo "Command: pct create $CTID $TEMPLATE --hostname $HOSTNAME --memory $RAM --net0 name=eth0,bridge=$BRIDGE,firewall=1,gw=${IP%/*}.1,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password <hidden> --unprivileged 1 --start $START_AT_BOOT"
 
-    pct create $CTID --ostemplate local:vztmpl/$TEMPLATE --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP \
-        --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE \
-        --password $PASSWORD --onboot $START_AT_BOOT --start 1
+    pct create $CTID $TEMPLATE --hostname $HOSTNAME --memory $RAM --net0 name=eth0,bridge=$BRIDGE,firewall=1,gw=${IP%/*}.1,ip=$IP --rootfs $STORAGE:$DISK_SIZE \
+        --password $PASSWORD --unprivileged 1 --start $START_AT_BOOT --ssh-public-keys /root/.ssh/authorized_keys --ostype ubuntu --ignore-unpack-errors
 
     if [ $? -eq 0 ]; then
         echo "Container $CTID created successfully!"
@@ -59,7 +58,8 @@ load_configuration() {
 
 # Function to select a template from available options
 select_template() {
-    local TEMPLATES=("debian-11-standard_11.7-1_amd64.tar.zst"
+    local TEMPLATES=("/mnt/pve/cephfs/template/cache/jammy-minimal-cloudimg-amd64-root.tar.xz"
+                     "debian-11-standard_11.7-1_amd64.tar.zst"
                      "debian-11-turnkey-mattermost_17.2-1_amd64.tar.gz"
                      "debian-11-turnkey-nextcloud_17.2-1_amd64.tar.gz"
                      "debian-12-standard_12.0-1_amd64.tar.zst"
