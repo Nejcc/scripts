@@ -19,9 +19,9 @@ create_container() {
     local STORAGE=${11}
 
     echo "Creating container $CTID with hostname $HOSTNAME and IP $IP using template $TEMPLATE..."
-    echo "Command: pct create $CTID local:vztmpl/$TEMPLATE --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password <hidden> --onboot $START_AT_BOOT --start 1"
+    echo "Command: pct create $CTID --ostemplate local:vztmpl/$TEMPLATE --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password <hidden> --onboot $START_AT_BOOT --start 1"
 
-    pct create $CTID local:vztmpl/$TEMPLATE --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP \
+    pct create $CTID --ostemplate local:vztmpl/$TEMPLATE --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP \
         --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE \
         --password $PASSWORD --onboot $START_AT_BOOT --start 1
 
