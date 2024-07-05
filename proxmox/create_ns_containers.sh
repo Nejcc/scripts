@@ -58,6 +58,24 @@ load_configuration() {
     fi
 }
 
+# Function to select a template from available options
+select_template() {
+    local TEMPLATES=("debian-11-standard_11.7-1_amd64.tar.zst"
+                     "debian-11-turnkey-mattermost_17.2-1_amd64.tar.gz"
+                     "debian-11-turnkey-nextcloud_17.2-1_amd64.tar.gz"
+                     "debian-12-standard_12.0-1_amd64.tar.zst"
+                     "ubuntu-22.04-standard_22.04-1_amd64.tar.zst")
+    
+    echo "Available templates:"
+    for i in "${!TEMPLATES[@]}"; do
+        echo "$((i+1))) ${TEMPLATES[i]}"
+    done
+
+    read -rp "Select a template by number: " TEMPLATE_INDEX
+    TEMPLATE=${TEMPLATES[$((TEMPLATE_INDEX-1))]}
+    echo "Selected template: $TEMPLATE"
+}
+
 # Main function
 main() {
     load_configuration
@@ -75,7 +93,7 @@ main() {
     read -rp "Enter the disk size for each container (default 20G): " DISK_SIZE
     DISK_SIZE=${DISK_SIZE:-20G}
     read -rp "Enter the storage pool (e.g., local-lvm): " STORAGE
-    read -rp "Enter the template to use (e.g., debian-11-standard_11.7-1_amd64.tar.zst): " TEMPLATE
+    select_template
     read -rp "Should the containers start at boot? (yes/no): " START_AT_BOOT
     read -rp "Enter the initial template ID: " INITIAL_TEMPLATE_ID
 
