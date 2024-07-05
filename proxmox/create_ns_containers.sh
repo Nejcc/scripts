@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Variables
-TEMPLATE_ID="100"  # ID of the template, assuming a Debian template
 BRIDGE="vmbr0"     # Network bridge to use
 STORAGE="local-lvm"  # Storage pool
+CONFIG_FILE="ct_config.txt"
 
 # Function to create a container
 create_container() {
@@ -16,18 +16,50 @@ create_container() {
     local SWAP=$7
     local DISK_SIZE=$8
     local START_AT_BOOT=$9
+    local TEMPLATE_ID=${10}
 
-    echo "Creating container $CTID with hostname $HOSTNAME and IP $IP..."
-    
+    echo "Creating container $CTID with hostname $HOSTNAME and IP $IP using template $TEMPLATE_ID..."
+
     pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP \
         --net0 name=eth0,bridge=$BRIDGE,ip=$IP --storage $STORAGE --rootfs $DISK_SIZE \
         --password $PASSWORD --onboot $START_AT_BOOT --start 1
-    
-    echo "Container $CTID created successfully!"
+
+    if [ $? -eq 0 ]; then
+        echo "Container $CTID created successfully!"
+    else
+        echo "Failed to create container $CTID. Please check the Proxmox logs for more details."
+        exit 1
+    fi
+}
+
+# Function to save the configuration
+save_configuration() {
+    echo "$1" >> $CONFIG_FILE
+}
+
+# Function to load the configuration
+load_configuration() {
+    if [ -f $CONFIG_FILE ]; then
+        echo "Found existing configuration file."
+        read -rp "Do you want to use the existing configuration? (yes/no): " USE_EXISTING_CONFIG
+
+        if [[ "$USE_EXISTING_CONFIG" == "yes" ]]; then
+            while IFS= read -r line; do
+                create_container $line
+            done < $CONFIG_FILE
+            echo "All containers created successfully using existing configuration!"
+            exit 0
+        else
+            rm -f $CONFIG_FILE
+            echo "Starting from scratch..."
+        fi
+    fi
 }
 
 # Main function
 main() {
+    load_configuration
+
     # Prompt for the common parameters
     read -rp "Enter the nameserver prefix (e.g., lb): " PREFIX
     read -rp "Enter the number of containers to create: " NUM_CONTAINERS
@@ -37,6 +69,10 @@ main() {
     read -rp "Enter the SWAP size in MB for each container: " SWAP
     read -rp "Enter the disk size for each container (e.g., 10G): " DISK_SIZE
     read -rp "Should the containers start at boot? (yes/no): " START_AT_BOOT
+    read -rp "Enter the initial template ID: " INITIAL_TEMPLATE_ID
+
+    # Ask if the template ID should be auto-incremented
+    read -rp "Should the template ID be auto-incremented? (yes/no): " AUTO_INCREMENT
 
     # Convert the yes/no input to a numeric value
     if [[ "$START_AT_BOOT" == "yes" ]]; then
@@ -44,6 +80,8 @@ main() {
     else
         START_AT_BOOT=0
     fi
+
+    TEMPLATE_ID=$INITIAL_TEMPLATE_ID
 
     for ((i=1; i<=NUM_CONTAINERS; i++)); do
         # Generate the CT ID, hostname, and IP address
@@ -53,8 +91,19 @@ main() {
         read -rsp "Enter the password for container $i: " PASSWORD
         echo
 
+        # Save the configuration
+        save_configuration "$CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID"
+
         # Create the container
-        create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT
+        create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID
+
+        # Auto-increment the template ID if needed
+        if [[ "$AUTO_INCREMENT" == "yes" ]]; then
+            TEMPLATE_ID=$((TEMPLATE_ID + 1))
+        else
+            # Prompt for the next template ID if not auto-incrementing
+            read -rp "Enter the template ID for the next container: " TEMPLATE_ID
+        fi
     done
 
     echo "All containers created successfully!"
