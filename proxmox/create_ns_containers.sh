@@ -69,7 +69,7 @@ main() {
     read -rp "Enter the RAM size in MB for each container: " RAM
     read -rp "Enter the SWAP size in MB for each container: " SWAP
     read -rp "Enter the disk size for each container (e.g., 10G): " DISK_SIZE
-    read -rp "Enter the storage pool (e.g., pve01): " STORAGE
+    read -rp "Enter the storage pool (e.g., local-lvm): " STORAGE
     read -rp "Should the containers start at boot? (yes/no): " START_AT_BOOT
     read -rp "Enter the initial template ID: " INITIAL_TEMPLATE_ID
 
@@ -102,10 +102,10 @@ main() {
 
     CONFIG_SUMMARY="Configuration Summary:\n"
 
-    for ((i=1; i<=NUM_CONTAINERS; i++)); do
+    for ((i=0; i<NUM_CONTAINERS; i++)); do
         # Generate the CT ID, hostname, and IP address
         CTID=$((100 + i))
-        HOSTNAME="${PREFIX}$(printf "%02d" $i)${DOMAIN}"
+        HOSTNAME="${PREFIX}$(printf "%02d" $CTID)${DOMAIN}"
         
         if [[ "$AUTO_INCREMENT_IP" == "yes" ]]; then
             IP="${IP1}.${IP2}.${IP3}.$((IP4 + i))/${SUBNET}"
@@ -122,7 +122,7 @@ main() {
         save_configuration "$CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID $STORAGE"
 
         # Append to the configuration summary
-        CONFIG_SUMMARY+="CTID: $CTID, Hostname: $HOSTNAME, IP: $IP, Cores: $CORES, RAM: $RAM MB, SWAP: $SWAP MB, Disk: $DISK_SIZE, Storage: $STORAGE, Start at boot: $START_AT_BOOT, Template ID: $TEMPLATE_ID\n"
+        CONFIG_SUMMARY+="\nCTID: $CTID\nHostname: $HOSTNAME\nIP: $IP\nCores: $CORES\nRAM: $RAM MB\nSWAP: $SWAP MB\nDisk: $DISK_SIZE\nStorage: $STORAGE\nStart at boot: $START_AT_BOOT\nTemplate ID: $TEMPLATE_ID\n"
 
         # Create the container
         create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID $STORAGE
