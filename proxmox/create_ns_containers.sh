@@ -72,7 +72,22 @@ main() {
     read -rp "Enter the initial template ID: " INITIAL_TEMPLATE_ID
 
     # Ask if the template ID should be auto-incremented
-    read -rp "Should the template ID be auto-incremented? (yes/no): " AUTO_INCREMENT
+    read -rp "Should the template ID be auto-incremented? (yes/no): " AUTO_INCREMENT_TEMPLATE_ID
+
+    # Ask if the password should be the same for each machine
+    read -rp "Should the password be the same for each container? (yes/no): " SAME_PASSWORD
+    if [[ "$SAME_PASSWORD" == "yes" ]]; then
+        read -rsp "Enter the password for all containers: " PASSWORD
+        echo
+    fi
+
+    # Ask if the IP should be auto-incremented
+    read -rp "Should the IP address be auto-incremented? (yes/no): " AUTO_INCREMENT_IP
+    if [[ "$AUTO_INCREMENT_IP" == "yes" ]]; then
+        read -rp "Enter the initial IP address (e.g., 192.168.1.10/24): " INITIAL_IP
+        IFS='/' read -r BASE_IP SUBNET <<< "$INITIAL_IP"
+        IFS='.' read -r IP1 IP2 IP3 IP4 <<< "$BASE_IP"
+    fi
 
     # Convert the yes/no input to a numeric value
     if [[ "$START_AT_BOOT" == "yes" ]]; then
@@ -87,9 +102,17 @@ main() {
         # Generate the CT ID, hostname, and IP address
         CTID=$((100 + i))
         HOSTNAME="${PREFIX}$(printf "%02d" $i)${DOMAIN}"
-        read -rp "Enter the IP address for container $i (e.g., 192.168.1.10/24): " IP
-        read -rsp "Enter the password for container $i: " PASSWORD
-        echo
+        
+        if [[ "$AUTO_INCREMENT_IP" == "yes" ]]; then
+            IP="${IP1}.${IP2}.${IP3}.$((IP4 + i))/${SUBNET}"
+        else
+            read -rp "Enter the IP address for container $i (e.g., 192.168.1.10/24): " IP
+        fi
+        
+        if [[ "$SAME_PASSWORD" != "yes" ]]; then
+            read -rsp "Enter the password for container $i: " PASSWORD
+            echo
+        fi
 
         # Save the configuration
         save_configuration "$CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID"
@@ -98,7 +121,7 @@ main() {
         create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID
 
         # Auto-increment the template ID if needed
-        if [[ "$AUTO_INCREMENT" == "yes" ]]; then
+        if [[ "$AUTO_INCREMENT_TEMPLATE_ID" == "yes" ]]; then
             TEMPLATE_ID=$((TEMPLATE_ID + 1))
         else
             # Prompt for the next template ID if not auto-incrementing
