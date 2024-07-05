@@ -49,7 +49,7 @@ main() {
         # Generate the CT ID, hostname, and IP address
         CTID=$((100 + i))
         HOSTNAME="${PREFIX}$(printf "%02d" $i)${DOMAIN}"
-        read -rp "Enter the IP address for container $i: " IP
+        read -rp "Enter the IP address for container $i (e.g., 192.168.1.10/24): " IP
         read -rsp "Enter the password for container $i: " PASSWORD
         echo
 
