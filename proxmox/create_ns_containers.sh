@@ -1,3 +1,9 @@
+#!/bin/bash
+
+# Variables
+BRIDGE="vmbr0"     # Network bridge to use
+CONFIG_FILE="ct_config.txt"
+
 # Function to create a container
 create_container() {
     local CTID=$1
@@ -27,6 +33,30 @@ create_container() {
     fi
 }
 
+# Function to save the configuration
+save_configuration() {
+    echo "$1" >> $CONFIG_FILE
+}
+
+# Function to load the configuration
+load_configuration() {
+    if [ -f $CONFIG_FILE ]; then
+        echo "Found existing configuration file."
+        read -rp "Do you want to use the existing configuration? (yes/no): " USE_EXISTING_CONFIG
+
+        if [[ "$USE_EXISTING_CONFIG" == "yes" ]]; then
+            while IFS= read -r line; do
+                create_container $line
+            done < $CONFIG_FILE
+            echo "All containers created successfully using existing configuration!"
+            exit 0
+        else
+            rm -f $CONFIG_FILE
+            echo "Starting from scratch..."
+        fi
+    fi
+}
+
 # Main function
 main() {
     load_configuration
@@ -39,7 +69,7 @@ main() {
     read -rp "Enter the RAM size in MB for each container: " RAM
     read -rp "Enter the SWAP size in MB for each container: " SWAP
     read -rp "Enter the disk size for each container (e.g., 10G): " DISK_SIZE
-    read -rp "Enter the storage pool (e.g., local-lvm): " STORAGE
+    read -rp "Enter the storage pool (e.g., pve01): " STORAGE
     read -rp "Should the containers start at boot? (yes/no): " START_AT_BOOT
     read -rp "Enter the initial template ID: " INITIAL_TEMPLATE_ID
 
