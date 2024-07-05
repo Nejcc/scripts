@@ -2,7 +2,6 @@
 
 # Variables
 BRIDGE="vmbr0"     # Network bridge to use
-STORAGE="local-lvm"  # Storage pool
 CONFIG_FILE="ct_config.txt"
 
 # Function to create a container
@@ -17,12 +16,13 @@ create_container() {
     local DISK_SIZE=$8
     local START_AT_BOOT=$9
     local TEMPLATE_ID=${10}
+    local STORAGE=${11}
 
     echo "Creating container $CTID with hostname $HOSTNAME and IP $IP using template $TEMPLATE_ID..."
-    echo "Command: pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --storage $STORAGE --rootfs $STORAGE:$DISK_SIZE --password $PASSWORD --onboot $START_AT_BOOT --start 1"
+    echo "Command: pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE --password $PASSWORD --onboot $START_AT_BOOT --start 1"
 
     pct create $CTID $TEMPLATE_ID --hostname $HOSTNAME --cores $CORES --memory $RAM --swap $SWAP \
-        --net0 name=eth0,bridge=$BRIDGE,ip=$IP --storage $STORAGE --rootfs $STORAGE:$DISK_SIZE \
+        --net0 name=eth0,bridge=$BRIDGE,ip=$IP --rootfs $STORAGE:$DISK_SIZE \
         --password $PASSWORD --onboot $START_AT_BOOT --start 1
 
     if [ $? -eq 0 ]; then
@@ -69,6 +69,7 @@ main() {
     read -rp "Enter the RAM size in MB for each container: " RAM
     read -rp "Enter the SWAP size in MB for each container: " SWAP
     read -rp "Enter the disk size for each container (e.g., 10G): " DISK_SIZE
+    read -rp "Enter the storage pool (e.g., local-lvm): " STORAGE
     read -rp "Should the containers start at boot? (yes/no): " START_AT_BOOT
     read -rp "Enter the initial template ID: " INITIAL_TEMPLATE_ID
 
@@ -116,10 +117,10 @@ main() {
         fi
 
         # Save the configuration
-        save_configuration "$CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID"
+        save_configuration "$CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID $STORAGE"
 
         # Create the container
-        create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID
+        create_container $CTID $HOSTNAME $IP $PASSWORD $CORES $RAM $SWAP $DISK_SIZE $START_AT_BOOT $TEMPLATE_ID $STORAGE
 
         # Auto-increment the template ID if needed
         if [[ "$AUTO_INCREMENT_TEMPLATE_ID" == "yes" ]]; then
