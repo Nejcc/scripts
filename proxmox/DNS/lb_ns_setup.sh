@@ -42,12 +42,6 @@ configure_dns() {
   pct exec $ctid -- ping -c 1 deb.debian.org
 }
 
-# Function to set the network gateway
-set_network_gateway() {
-  local ctid=$1
-  pct set $ctid -net0 name=eth0,bridge=vmbr0,gw=192.168.1.1
-}
-
 # Function to start a container if not running
 start_container_if_not_running() {
   local ctid=$1
@@ -118,9 +112,6 @@ setup_load_balancers() {
 
     pct set $ctid --tag "under-maintenance"
     
-    # Set network gateway
-    set_network_gateway $ctid
-
     # Start the container if not running
     start_container_if_not_running $ctid
     
@@ -156,9 +147,6 @@ setup_name_servers() {
     local ctid=$((10010 + i))
     echo "Configuring Name Server ${ns_ip_array[$i]} with CTID $ctid"
     pct set $ctid --tag "under-maintenance"
-
-    # Set network gateway
-    set_network_gateway $ctid
 
     # Start the container if not running
     start_container_if_not_running $ctid
