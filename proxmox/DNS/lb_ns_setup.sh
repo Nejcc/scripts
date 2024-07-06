@@ -70,7 +70,18 @@ $backend_config
 "
   echo -e "$config" > /tmp/haproxy.cfg
   pct push $ctid /tmp/haproxy.cfg /etc/haproxy/haproxy.cfg
+  pct exec $ctid -- mkdir -p /etc/haproxy
+  pct push $ctid /tmp/haproxy.cfg /etc/haproxy/haproxy.cfg
   pct exec $ctid -- systemctl restart haproxy
+}
+
+# Function to install or reinstall applications on a container
+install_or_reinstall_app() {
+  local ctid=$1
+  local app=$2
+
+  pct exec $ctid -- apt-get remove --purge -y $app
+  pct exec $ctid -- apt-get install -y $app
 }
 
 # Function to install HAProxy on load balancers
@@ -91,7 +102,7 @@ setup_load_balancers() {
     # Install and configure HAProxy
     if [ "$fresh_install" == "yes" ]; then
       pct exec $ctid -- apt-get update || true
-      pct exec $ctid -- apt-get install -y haproxy || true
+      install_or_reinstall_app $ctid "haproxy"
     fi
     configure_haproxy $ctid "${ns_ip_array[@]}"
     
@@ -118,7 +129,7 @@ setup_name_servers() {
     # Install Pi-hole and GravitySync
     if [ "$fresh_install" == "yes" ]; then
       pct exec $ctid -- apt-get update || true
-      pct exec $ctid -- apt-get install -y curl || true
+      install_or_reinstall_app $ctid "curl"
       pct exec $ctid -- bash -c "$(curl -sSL https://install.pi-hole.net)" || true
       pct exec $ctid -- bash -c "curl -sSL https://gravitysync.com/install.sh | bash" || true
     fi
