@@ -14,11 +14,12 @@ create_container() {
     local SWAP=$6
     local CORES=$7
     local IP=$8
+    local PASSWORD=$9
 
     echo "Creating container $CTID with hostname $HOSTNAME and IP $IP..."
-    echo "Command: pct create $CTID local:vztmpl/debian-12-standard_12.0-1_amd64.tar.zst --hostname $HOSTNAME --storage $STORAGE --rootfs $STORAGE:$DISK_SIZE --memory $MEMORY --swap $SWAP --cores $CORES --net0 name=eth0,bridge=$BRIDGE,ip=$IP"
+    echo "Command: pct create $CTID local:vztmpl/debian-12-standard_12.0-1_amd64.tar.zst --hostname $HOSTNAME --storage $STORAGE --rootfs $STORAGE:$DISK_SIZE --memory $MEMORY --swap $SWAP --cores $CORES --net0 name=eth0,bridge=$BRIDGE,ip=$IP --password <hidden>"
 
-    pct create $CTID local:vztmpl/debian-12-standard_12.0-1_amd64.tar.zst --hostname $HOSTNAME --storage $STORAGE --rootfs $STORAGE:$DISK_SIZE --memory $MEMORY --swap $SWAP --cores $CORES --net0 name=eth0,bridge=$BRIDGE,ip=$IP
+    pct create $CTID local:vztmpl/debian-12-standard_12.0-1_amd64.tar.zst --hostname $HOSTNAME --storage $STORAGE --rootfs $STORAGE:$DISK_SIZE --memory $MEMORY --swap $SWAP --cores $CORES --net0 name=eth0,bridge=$BRIDGE,ip=$IP --password $PASSWORD
 
     if [ $? -eq 0 ]; then
         echo "Container $CTID created successfully!"
@@ -98,6 +99,8 @@ main() {
     read -rp "Enter the storage pool (e.g., local-lvm, default local-lvm): " STORAGE
     STORAGE=${STORAGE:-local-lvm}
     read -rp "Should the IP be set to DHCP? (yes/no): " DHCP_IP
+    read -rsp "Enter the password for the containers: " PASSWORD
+    echo
 
     if [[ "$DHCP_IP" == "yes" ]]; then
         IP="dhcp"
@@ -138,13 +141,13 @@ main() {
         fi
 
         # Save the configuration
-        save_configuration "$CTID $HOSTNAME $STORAGE $DISK_SIZE $MEMORY $SWAP $CORES $IP"
+        save_configuration "$CTID $HOSTNAME $STORAGE $DISK_SIZE $MEMORY $SWAP $CORES $IP $PASSWORD"
 
         # Append to the configuration summary
         CONFIG_SUMMARY+="\nCTID: $CTID\nHostname: $HOSTNAME\nIP: $IP\nMemory: $MEMORY MB\nSwap: $SWAP MB\nCores: $CORES\nDisk: $DISK_SIZE\nStorage: $STORAGE\n"
 
         # Create the container
-        create_container $CTID $HOSTNAME $STORAGE $DISK_SIZE $MEMORY $SWAP $CORES $IP
+        create_container $CTID $HOSTNAME $STORAGE $DISK_SIZE $MEMORY $SWAP $CORES $IP $PASSWORD
     done
 
     echo -e "$CONFIG_SUMMARY"
