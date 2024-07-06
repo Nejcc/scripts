@@ -51,6 +51,27 @@ load_configuration() {
     return 1  # New configuration will be created
 }
 
+# Function to check if a CT ID is available
+is_ctid_available() {
+    local CTID=$1
+    if pct status $CTID &> /dev/null; then
+        return 1  # CTID is in use
+    else
+        return 0  # CTID is available
+    fi
+}
+
+# Function to find the next available CT ID
+find_next_available_ctid() {
+    local CTID=$1
+
+    while ! is_ctid_available $CTID; do
+        CTID=$((CTID + 1))
+    done
+
+    echo "$CTID"
+}
+
 # Function to check if an IP address is available
 is_ip_available() {
     local IP=$1
@@ -166,6 +187,8 @@ main() {
         read -rp "Enter the storage pool (e.g., local-lvm, default $STORAGE): " STORAGE
         STORAGE=${STORAGE:-local-lvm}
         read -rp "Should the IP be set to DHCP? (yes/no): " DHCP_IP
+        read -rp "Enter the starting CT number (default 10000): " START_CID
+        START_CID=${START_CID:-10000}
         read -rsp "Enter the password for the containers: " PASSWORD
         echo
 
@@ -191,7 +214,15 @@ main() {
 
         for ((i=0; i<NUM_CONTAINERS; i++)); do
             # Generate the CT ID, hostname, and IP address
-            CTID=$((10000 + i))
+            CTID=$((START_CID + i))
+            if ! is_ctid_available $CTID; then
+                read -rp "Container ID $CTID already exists. Do you want to find the next available CTID? (yes/no): " FIND_NEXT_CTID
+                if [[ "$FIND_NEXT_CTID" == "yes" ]]; then
+                    CTID=$(find_next_available_ctid $CTID)
+                else
+                    read -rp "Enter a new CTID: " CTID
+                fi
+            fi
             HOSTNAME="${PREFIX}$(printf "%02d" $((i+1)))${DOMAIN}"
 
             if [[ "$DHCP_IP" != "yes" && "$AUTO_INCREMENT_IP" == "yes" && "$i" -gt 0 ]]; then
@@ -225,7 +256,7 @@ main() {
     read -rp "Do you want to start the created containers now? (yes/no): " START_CONTAINERS
     if [[ "$START_CONTAINERS" == "yes" ]]; then
         for ((i=0; i<NUM_CONTAINERS; i++)); do
-            CTID=$((10000 + i))
+            CTID=$((START_CID + i))
             echo "Starting container $CTID..."
             pct start $CTID
         done
@@ -233,7 +264,7 @@ main() {
         read -rp "Do you want to update and upgrade the containers? (yes/no): " UPDATE_CONTAINERS
         if [[ "$UPDATE_CONTAINERS" == "yes" ]]; then
             for ((i=0; i<NUM_CONTAINERS; i++)); do
-                CTID=$((10000 + i))
+                CTID=$((START_CID + i))
                 update_and_upgrade $CTID
             done
         fi
@@ -241,7 +272,7 @@ main() {
         read -rp "Do you want to setup firewall on the containers? (yes/no): " SETUP_FIREWALL
         if [[ "$SETUP_FIREWALL" == "yes" ]]; then
             for ((i=0; i<NUM_CONTAINERS; i++)); do
-                CTID=$((10000 + i))
+                CTID=$((START_CID + i))
                 setup_firewall $CTID
             done
         fi
