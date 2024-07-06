@@ -52,14 +52,41 @@ load_configuration() {
     fi
 }
 
+# Function to check if an IP address is available
+is_ip_available() {
+    local IP=$1
+    if ping -c 1 -W 1 $IP &> /dev/null; then
+        return 1  # IP is in use
+    else
+        return 0  # IP is available
+    fi
+}
+
+# Function to find the next available IP address
+find_next_available_ip() {
+    local BASE_IP=$1
+    local SUBNET=$2
+    local IP1 IP2 IP3 IP4
+
+    IFS='.' read -r IP1 IP2 IP3 IP4 <<< "$BASE_IP"
+    
+    while ! is_ip_available "${IP1}.${IP2}.${IP3}.${IP4}"; do
+        IP4=$((IP4 + 1))
+    done
+
+    echo "${IP1}.${IP2}.${IP3}.${IP4}/${SUBNET}"
+}
+
 # Main function
 main() {
     load_configuration
 
-    # Prompt for the common parameters
+    # Prompt for the common parameters with defaults
     read -rp "Enter the nameserver prefix (e.g., lb): " PREFIX
-    read -rp "Enter the number of containers to create: " NUM_CONTAINERS
-    read -rp "Enter the domain name (e.g., .local): " DOMAIN
+    read -rp "Enter the number of containers to create (default 1): " NUM_CONTAINERS
+    NUM_CONTAINERS=${NUM_CONTAINERS:-1}
+    read -rp "Enter the domain name (e.g., .local, default .local): " DOMAIN
+    DOMAIN=${DOMAIN:-.local}
     read -rp "Enter the memory size in MB for each container (default 2048): " MEMORY
     MEMORY=${MEMORY:-2048}
     read -rp "Enter the SWAP size in MB for each container (default 512): " SWAP
@@ -68,7 +95,8 @@ main() {
     CORES=${CORES:-2}
     read -rp "Enter the disk size for each container (default 25): " DISK_SIZE
     DISK_SIZE=${DISK_SIZE:-25}
-    read -rp "Enter the storage pool (e.g., local-lvm): " STORAGE
+    read -rp "Enter the storage pool (e.g., local-lvm, default local-lvm): " STORAGE
+    STORAGE=${STORAGE:-local-lvm}
     read -rp "Should the IP be set to DHCP? (yes/no): " DHCP_IP
 
     if [[ "$DHCP_IP" == "yes" ]]; then
@@ -79,7 +107,13 @@ main() {
         if [[ "$AUTO_INCREMENT_IP" == "yes" ]]; then
             read -rp "Enter the initial IP address (e.g., 192.168.1.10/24): " INITIAL_IP
             IFS='/' read -r BASE_IP SUBNET <<< "$INITIAL_IP"
-            IFS='.' read -r IP1 IP2 IP3 IP4 <<< "$BASE_IP"
+            IP=$(find_next_available_ip "$BASE_IP" "$SUBNET")
+        else
+            read -rp "Enter the IP address for container 0 (e.g., 192.168.1.10/24): " IP
+            if ! is_ip_available "${IP%/*}"; then
+                echo "The IP address $IP is already in use. Please provide a different IP."
+                exit 1
+            fi
         fi
     fi
 
@@ -89,11 +123,9 @@ main() {
         # Generate the CT ID, hostname, and IP address
         CTID=$((10000 + i))
         HOSTNAME="${PREFIX}$(printf "%02d" $((i+1)))${DOMAIN}"
-        
-        if [[ "$DHCP_IP" != "yes" && "$AUTO_INCREMENT_IP" == "yes" ]]; then
-            IP="${IP1}.${IP2}.${IP3}.$((IP4 + i))/${SUBNET}"
-        elif [[ "$DHCP_IP" != "yes" ]]; then
-            read -rp "Enter the IP address for container $i (e.g., 192.168.1.10/24): " IP
+
+        if [[ "$DHCP_IP" != "yes" && "$AUTO_INCREMENT_IP" == "yes" && "$i" -gt 0 ]]; then
+            IP=$(find_next_available_ip "${IP%/*}" "$SUBNET")
         fi
 
         # Save the configuration
