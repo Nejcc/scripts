@@ -100,7 +100,7 @@ setup_load_balancers() {
 
     # Install and configure HAProxy
     if [ "$fresh_install" == "yes" ]; then
-      pct exec $ctid -- apt-get update || true
+      pct exec $ctid -- apt-get update --fix-missing || true
       install_or_reinstall_app $ctid "haproxy"
     fi
     configure_haproxy $ctid "${ns_ip_array[@]}"
@@ -127,7 +127,7 @@ setup_name_servers() {
 
     # Install Pi-hole and GravitySync
     if [ "$fresh_install" == "yes" ]; then
-      pct exec $ctid -- apt-get update || true
+      pct exec $ctid -- apt-get update --fix-missing || true
       install_or_reinstall_app $ctid "curl"
       pct exec $ctid -- mkdir -p /etc/haproxy
       pct exec $ctid -- bash -c "$(curl -sSL https://install.pi-hole.net)" || true
