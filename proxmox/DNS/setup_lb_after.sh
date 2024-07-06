@@ -1,25 +1,25 @@
 #!/bin/bash
 
-# Function to configure network interfaces for a VM
+# Function to configure network interfaces for a container
 configure_network() {
-    local vmid=$1
+    local ctid=$1
     local bridge=$2
-    qm set $vmid -net0 model=virtio,bridge=$bridge
+    pct set $ctid -net0 name=eth0,bridge=$bridge,ip=dhcp
 }
 
-# Function to install HAProxy on a VM
+# Function to install HAProxy on a container
 install_haproxy() {
-    local vmid=$1
-    qm guest exec $vmid -- apt update
-    qm guest exec $vmid -- apt install -y haproxy
+    local ctid=$1
+    pct exec $ctid -- apt update
+    pct exec $ctid -- apt install -y haproxy
 }
 
-# Function to configure HAProxy on a VM
+# Function to configure HAProxy on a container
 configure_haproxy() {
-    local vmid=$1
+    local ctid=$1
     local haproxy_cfg="/etc/haproxy/haproxy.cfg"
-    
-    cat <<EOF | qm guest exec $vmid -- bash -c "cat > $haproxy_cfg"
+
+    pct exec $ctid -- bash -c "cat > $haproxy_cfg" <<EOF
 global
     log /dev/log local0
     log /dev/log local1 notice
@@ -49,13 +49,11 @@ backend pihole_backend
     balance roundrobin
 EOF
 
-    for i in "${!ns_vms[@]}"; do
-        cat <<EOF | qm guest exec $vmid -- bash -c "cat >> $haproxy_cfg"
-    server ns0$i ${ns_vms[$i]}:80 check
-EOF
+    for i in "${!ns_ips[@]}"; do
+        pct exec $ctid -- bash -c "echo '    server ns0$i ${ns_ips[$i]}:80 check' >> $haproxy_cfg"
     done
 
-    cat <<EOF | qm guest exec $vmid -- bash -c "cat >> $haproxy_cfg"
+    pct exec $ctid -- bash -c "cat >> $haproxy_cfg" <<EOF
 
 listen stats
     bind *:8404
@@ -64,27 +62,27 @@ listen stats
     stats refresh 10s
 EOF
 
-    qm guest exec $vmid -- systemctl restart haproxy
+    pct exec $ctid -- systemctl restart haproxy
 }
 
 # Main script
 read -p "Enter the bridge name (e.g., vmbr0): " bridge
 
-read -p "Enter the IDs of the load balancer VMs (comma-separated): " lb_input
-IFS=',' read -r -a lb_vms <<< "$lb_input"
+read -p "Enter the CTIDs of the load balancer containers (comma-separated): " lb_input
+IFS=',' read -r -a lb_ctids <<< "$lb_input"
 
-read -p "Enter the IPs of the name server VMs (comma-separated): " ns_input
-IFS=',' read -r -a ns_vms <<< "$ns_input"
+read -p "Enter the IPs of the name server containers (comma-separated): " ns_input
+IFS=',' read -r -a ns_ips <<< "$ns_input"
 
-# Configure network interfaces for LB and NS VMs
-for vmid in "${lb_vms[@]}"; do
-    configure_network $vmid $bridge
-    install_haproxy $vmid
-    configure_haproxy $vmid
+# Configure network interfaces for LB and NS containers
+for ctid in "${lb_ctids[@]}"; do
+    configure_network $ctid $bridge
+    install_haproxy $ctid
+    configure_haproxy $ctid
 done
 
-for vmid in "${ns_vms[@]}"; do
-    configure_network $vmid $bridge
+for ctid in "${ns_ips[@]}"; do
+    configure_network $ctid $bridge
 done
 
 echo "Setup complete. Load balancers and name servers are configured."
