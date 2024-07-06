@@ -79,18 +79,25 @@ find_next_available_ip() {
     echo "${IP1}.${IP2}.${IP3}.${IP4}/${SUBNET}"
 }
 
+# Function to configure DNS
+configure_dns() {
+    local CTID=$1
+    echo "Configuring DNS for container $CTID..."
+    pct exec $CTID -- bash -c "echo 'nameserver 8.8.8.8' > /etc/resolv.conf && echo 'nameserver 8.8.4.4' >> /etc/resolv.conf"
+}
+
 # Function to update and upgrade the container
 update_and_upgrade() {
     local CTID=$1
     echo "Updating and upgrading container $CTID..."
-    pct exec $CTID -- bash -c "apt-get update && apt-get upgrade -y"
+    pct exec $CTID -- bash -c "apt-get update && apt-get upgrade -y" || (configure_dns $CTID && pct exec $CTID -- bash -c "apt-get update && apt-get upgrade -y --fix-missing")
 }
 
 # Function to setup firewall
 setup_firewall() {
     local CTID=$1
     echo "Setting up firewall for container $CTID..."
-    pct exec $CTID -- bash -c "apt-get install -y ufw && ufw default deny incoming && ufw default allow outgoing && ufw allow ssh && ufw enable"
+    pct exec $CTID -- bash -c "apt-get install -y ufw && ufw default deny incoming && ufw default allow outgoing && ufw allow ssh && ufw enable" || (configure_dns $CTID && pct exec $CTID -- bash -c "apt-get install -y ufw && ufw default deny incoming && ufw default allow outgoing && ufw allow ssh && ufw enable --fix-missing")
 }
 
 # Function to load preset configuration
