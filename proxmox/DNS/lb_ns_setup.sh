@@ -39,6 +39,16 @@ configure_dns() {
   pct exec $ctid -- bash -c "echo 'nameserver 8.8.4.4' >> /etc/resolv.conf"
 }
 
+# Function to start a container if not running
+start_container_if_not_running() {
+  local ctid=$1
+  if ! pct status $ctid | grep -q 'status: running'; then
+    echo "Starting container $ctid..."
+    pct start $ctid
+    sleep 5 # Wait for the container to fully start
+  fi
+}
+
 # Function to configure HAProxy on a load balancer
 configure_haproxy() {
   local ctid=$1
@@ -70,6 +80,9 @@ setup_load_balancers() {
 
     pct set $ctid --tag "under-maintenance"
     
+    # Start the container if not running
+    start_container_if_not_running $ctid
+    
     # Ensure DNS is configured
     configure_dns $ctid
 
@@ -93,6 +106,9 @@ setup_name_servers() {
     local ctid=$((10010 + i))
     echo "Configuring Name Server ${ns_ip_array[$i]} with CTID $ctid"
     pct set $ctid --tag "under-maintenance"
+
+    # Start the container if not running
+    start_container_if_not_running $ctid
 
     # Ensure DNS is configured
     configure_dns $ctid
