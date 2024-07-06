@@ -42,16 +42,13 @@ load_configuration() {
         read -rp "Do you want to use the existing configuration? (yes/no): " USE_EXISTING_CONFIG
 
         if [[ "$USE_EXISTING_CONFIG" == "yes" ]]; then
-            while IFS= read -r line; do
-                create_container $line
-            done < $CONFIG_FILE
-            echo "All containers created successfully using existing configuration!"
-            exit 0
+            return 0  # Existing configuration will be used
         else
             rm -f $CONFIG_FILE
             echo "Starting from scratch..."
         fi
     fi
+    return 1  # New configuration will be created
 }
 
 # Function to check if an IP address is available
@@ -115,115 +112,116 @@ load_preset_configuration() {
 
 # Main function
 main() {
-    load_configuration
+    if ! load_configuration; then
+        echo "Choose the type of container you want to set up:"
+        echo "1. LB NS (Load balance for NS (pihole))"
+        echo "2. NS (pihole) + ask for gravity-sync to be setup on servers (1,2,3,4 combinations)"
+        echo "3. Grafana"
+        echo "4. Prometheus"
+        echo "5. Web server"
+        echo "6. Clean setup"
+        read -rp "Enter the number of your choice: " CHOICE
 
-    echo "Choose the type of container you want to set up:"
-    echo "1. LB NS (Load balance for NS (pihole))"
-    echo "2. NS (pihole) + ask for gravity-sync to be setup on servers (1,2,3,4 combinations)"
-    echo "3. Grafana"
-    echo "4. Prometheus"
-    echo "5. Web server"
-    echo "6. Clean setup"
-    read -rp "Enter the number of your choice: " CHOICE
-
-    case $CHOICE in
-        1)
-            PRESET="lb_ns"
-            ;;
-        2)
-            PRESET="ns_pihole"
-            ;;
-        3)
-            PRESET="grafana"
-            ;;
-        4)
-            PRESET="prometheus"
-            ;;
-        5)
-            PRESET="web_server"
-            ;;
-        6)
-            PRESET="clean_setup"
-            ;;
-        *)
-            echo "Invalid choice. Exiting."
-            exit 1
-            ;;
-    esac
-
-    load_preset_configuration $PRESET
-
-    # Prompt for the common parameters with defaults
-    read -rp "Enter the nameserver prefix (e.g., lb): " PREFIX
-    read -rp "Enter the number of containers to create (default 1): " NUM_CONTAINERS
-    NUM_CONTAINERS=${NUM_CONTAINERS:-1}
-    read -rp "Enter the domain name (e.g., .local, default .local): " DOMAIN
-    DOMAIN=${DOMAIN:-.local}
-    read -rp "Enter the memory size in MB for each container (default $MEMORY): " MEMORY
-    MEMORY=${MEMORY:-2048}
-    read -rp "Enter the SWAP size in MB for each container (default $SWAP): " SWAP
-    SWAP=${SWAP:-512}
-    read -rp "Enter the number of cores for each container (default $CORES): " CORES
-    CORES=${CORES:-2}
-    read -rp "Enter the disk size for each container (default $DISK_SIZE): " DISK_SIZE
-    DISK_SIZE=${DISK_SIZE:-25}
-    read -rp "Enter the storage pool (e.g., local-lvm, default $STORAGE): " STORAGE
-    STORAGE=${STORAGE:-local-lvm}
-    read -rp "Should the IP be set to DHCP? (yes/no): " DHCP_IP
-    read -rsp "Enter the password for the containers: " PASSWORD
-    echo
-
-    if [[ "$DHCP_IP" == "yes" ]]; then
-        IP="dhcp"
-    else
-        # Ask if the IP should be auto-incremented
-        read -rp "Should the IP address be auto-incremented? (yes/no): " AUTO_INCREMENT_IP
-        if [[ "$AUTO_INCREMENT_IP" == "yes" ]]; then
-            read -rp "Enter the initial IP address (e.g., 192.168.1.10/24): " INITIAL_IP
-            IFS='/' read -r BASE_IP SUBNET <<< "$INITIAL_IP"
-            IP=$(find_next_available_ip "$BASE_IP" "$SUBNET")
-        else
-            read -rp "Enter the IP address for container 0 (e.g., 192.168.1.10/24): " IP
-            if ! is_ip_available "${IP%/*}"; then
-                echo "The IP address $IP is already in use. Please provide a different IP."
+        case $CHOICE in
+            1)
+                PRESET="lb_ns"
+                ;;
+            2)
+                PRESET="ns_pihole"
+                ;;
+            3)
+                PRESET="grafana"
+                ;;
+            4)
+                PRESET="prometheus"
+                ;;
+            5)
+                PRESET="web_server"
+                ;;
+            6)
+                PRESET="clean_setup"
+                ;;
+            *)
+                echo "Invalid choice. Exiting."
                 exit 1
+                ;;
+        esac
+
+        load_preset_configuration $PRESET
+
+        # Prompt for the common parameters with defaults
+        read -rp "Enter the nameserver prefix (e.g., lb): " PREFIX
+        read -rp "Enter the number of containers to create (default 1): " NUM_CONTAINERS
+        NUM_CONTAINERS=${NUM_CONTAINERS:-1}
+        read -rp "Enter the domain name (e.g., .local, default .local): " DOMAIN
+        DOMAIN=${DOMAIN:-.local}
+        read -rp "Enter the memory size in MB for each container (default $MEMORY): " MEMORY
+        MEMORY=${MEMORY:-2048}
+        read -rp "Enter the SWAP size in MB for each container (default $SWAP): " SWAP
+        SWAP=${SWAP:-512}
+        read -rp "Enter the number of cores for each container (default $CORES): " CORES
+        CORES=${CORES:-2}
+        read -rp "Enter the disk size for each container (default $DISK_SIZE): " DISK_SIZE
+        DISK_SIZE=${DISK_SIZE:-25}
+        read -rp "Enter the storage pool (e.g., local-lvm, default $STORAGE): " STORAGE
+        STORAGE=${STORAGE:-local-lvm}
+        read -rp "Should the IP be set to DHCP? (yes/no): " DHCP_IP
+        read -rsp "Enter the password for the containers: " PASSWORD
+        echo
+
+        if [[ "$DHCP_IP" == "yes" ]]; then
+            IP="dhcp"
+        else
+            # Ask if the IP should be auto-incremented
+            read -rp "Should the IP address be auto-incremented? (yes/no): " AUTO_INCREMENT_IP
+            if [[ "$AUTO_INCREMENT_IP" == "yes" ]]; then
+                read -rp "Enter the initial IP address (e.g., 192.168.1.10/24): " INITIAL_IP
+                IFS='/' read -r BASE_IP SUBNET <<< "$INITIAL_IP"
+                IP=$(find_next_available_ip "$BASE_IP" "$SUBNET")
+            else
+                read -rp "Enter the IP address for container 0 (e.g., 192.168.1.10/24): " IP
+                if ! is_ip_available "${IP%/*}"; then
+                    echo "The IP address $IP is already in use. Please provide a different IP."
+                    exit 1
+                fi
             fi
         fi
+
+        CONFIG_SUMMARY="Configuration Summary:\n"
+
+        for ((i=0; i<NUM_CONTAINERS; i++)); do
+            # Generate the CT ID, hostname, and IP address
+            CTID=$((10000 + i))
+            HOSTNAME="${PREFIX}$(printf "%02d" $((i+1)))${DOMAIN}"
+
+            if [[ "$DHCP_IP" != "yes" && "$AUTO_INCREMENT_IP" == "yes" && "$i" -gt 0 ]]; then
+                IFS='.' read -r IP1 IP2 IP3 IP4 <<< "${IP%/*}"
+                IP4=$((IP4 + 1))
+                IP="${IP1}.${IP2}.${IP3}.${IP4}/${SUBNET}"
+                IP=$(find_next_available_ip "${IP%/*}" "$SUBNET")
+            elif [[ "$DHCP_IP" != "yes" && "$i" -gt 0 ]]; then
+                read -rp "Enter the IP address for container $i (e.g., 192.168.1.10/24): " IP
+                if ! is_ip_available "${IP%/*}"; then
+                    echo "The IP address $IP is already in use. Please provide a different IP."
+                    exit 1
+                fi
+            fi
+
+            # Save the configuration
+            save_configuration "$CTID $HOSTNAME $STORAGE $DISK_SIZE $MEMORY $SWAP $CORES $IP $PASSWORD"
+
+            # Append to the configuration summary
+            CONFIG_SUMMARY+="\nCTID: $CTID\nHostname: $HOSTNAME\nIP: $IP\nMemory: $MEMORY MB\nSwap: $SWAP MB\nCores: $CORES\nDisk: $DISK_SIZE\nStorage: $STORAGE\n"
+
+            # Create the container
+            create_container $CTID $HOSTNAME $STORAGE $DISK_SIZE $MEMORY $SWAP $CORES $IP $PASSWORD
+        done
+
+        echo -e "$CONFIG_SUMMARY"
+        echo "All containers created successfully!"
     fi
 
-    CONFIG_SUMMARY="Configuration Summary:\n"
-
-    for ((i=0; i<NUM_CONTAINERS; i++)); do
-        # Generate the CT ID, hostname, and IP address
-        CTID=$((10000 + i))
-        HOSTNAME="${PREFIX}$(printf "%02d" $((i+1)))${DOMAIN}"
-
-        if [[ "$DHCP_IP" != "yes" && "$AUTO_INCREMENT_IP" == "yes" && "$i" -gt 0 ]]; then
-            IFS='.' read -r IP1 IP2 IP3 IP4 <<< "${IP%/*}"
-            IP4=$((IP4 + 1))
-            IP="${IP1}.${IP2}.${IP3}.${IP4}/${SUBNET}"
-            IP=$(find_next_available_ip "${IP%/*}" "$SUBNET")
-        elif [[ "$DHCP_IP" != "yes" && "$i" -gt 0 ]]; then
-            read -rp "Enter the IP address for container $i (e.g., 192.168.1.10/24): " IP
-            if ! is_ip_available "${IP%/*}"; then
-                echo "The IP address $IP is already in use. Please provide a different IP."
-                exit 1
-            fi
-        fi
-
-        # Save the configuration
-        save_configuration "$CTID $HOSTNAME $STORAGE $DISK_SIZE $MEMORY $SWAP $CORES $IP $PASSWORD"
-
-        # Append to the configuration summary
-        CONFIG_SUMMARY+="\nCTID: $CTID\nHostname: $HOSTNAME\nIP: $IP\nMemory: $MEMORY MB\nSwap: $SWAP MB\nCores: $CORES\nDisk: $DISK_SIZE\nStorage: $STORAGE\n"
-
-        # Create the container
-        create_container $CTID $HOSTNAME $STORAGE $DISK_SIZE $MEMORY $SWAP $CORES $IP $PASSWORD
-    done
-
-    echo -e "$CONFIG_SUMMARY"
-    echo "All containers created successfully!"
-
+    # Prompt to start the created containers if using existing configuration
     read -rp "Do you want to start the created containers now? (yes/no): " START_CONTAINERS
     if [[ "$START_CONTAINERS" == "yes" ]]; then
         for ((i=0; i<NUM_CONTAINERS; i++)); do
