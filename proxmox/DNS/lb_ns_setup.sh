@@ -69,7 +69,6 @@ frontend dns_frontend
 $backend_config
 "
   echo -e "$config" > /tmp/haproxy.cfg
-  pct push $ctid /tmp/haproxy.cfg /etc/haproxy/haproxy.cfg
   pct exec $ctid -- mkdir -p /etc/haproxy
   pct push $ctid /tmp/haproxy.cfg /etc/haproxy/haproxy.cfg
   pct exec $ctid -- systemctl restart haproxy
@@ -130,6 +129,7 @@ setup_name_servers() {
     if [ "$fresh_install" == "yes" ]; then
       pct exec $ctid -- apt-get update || true
       install_or_reinstall_app $ctid "curl"
+      pct exec $ctid -- mkdir -p /etc/haproxy
       pct exec $ctid -- bash -c "$(curl -sSL https://install.pi-hole.net)" || true
       pct exec $ctid -- bash -c "curl -sSL https://gravitysync.com/install.sh | bash" || true
     fi
