@@ -8,15 +8,36 @@ prompt_with_default() {
   echo "${input:-$default}"
 }
 
+# Function to prompt for yes/no input
+prompt_yes_no() {
+  local prompt=$1
+  while true; do
+    read -p "$prompt [y/n]: " input
+    case $input in
+      [Yy]* ) echo "yes"; return;;
+      [Nn]* ) echo "no"; return;;
+      * ) echo "Please answer yes or no.";;
+    esac
+  done
+}
+
 # Gather user input
 num_lb=$(prompt_with_default "How many load balancers (LB) do you have" "2")
 lb_ips=$(prompt_with_default "Provide IP list of load balancers (comma-separated)" "192.168.1.10,192.168.1.11")
 num_ns=$(prompt_with_default "How many name servers (NS) do you have" "4")
 ns_ips=$(prompt_with_default "Provide IP list of name servers (space-separated)" "192.168.1.20 192.168.1.21 192.168.1.22 192.168.1.23")
+fresh_install=$(prompt_yes_no "Do you want to perform a fresh install (this will remove existing containers)?")
 
 # Convert IP lists to arrays
 IFS=',' read -r -a lb_ip_array <<< "$lb_ips"
 IFS=' ' read -r -a ns_ip_array <<< "$ns_ips"
+
+# Function to configure DNS inside containers
+configure_dns() {
+  local ctid=$1
+  pct exec $ctid -- bash -c "echo 'nameserver 8.8.8.8' > /etc/resolv.conf"
+  pct exec $ctid -- bash -c "echo 'nameserver 8.8.4.4' >> /etc/resolv.conf"
+}
 
 # Function to configure HAProxy on a load balancer
 configure_haproxy() {
@@ -40,23 +61,39 @@ $backend_config
   pct exec $ctid -- systemctl restart haproxy
 }
 
+# Function to remove existing containers
+remove_existing_containers() {
+  local ctid=$1
+  if pct status $ctid &>/dev/null; then
+    pct stop $ctid
+    pct destroy $ctid
+    echo "Removed existing container with CTID $ctid"
+  fi
+}
+
 # Function to install and configure HAProxy on load balancers
 setup_load_balancers() {
   echo "Setting up Load Balancers..."
   for i in "${!lb_ip_array[@]}"; do
     local ctid=$((10000 + i))
+    if [ "$fresh_install" == "yes" ]; then
+      remove_existing_containers $ctid
+    fi
     echo "Configuring Load Balancer ${lb_ip_array[$i]} with CTID $ctid"
-
-    pct set $ctid --hostname "lb0$(($i + 1)).local"
-    pct set $ctid --net0 name=eth0,bridge=vmbr0,ip=${lb_ip_array[$i]}/24
-    pct set $ctid --memory 2048 --swap 512 --cores 2
-    pct set $ctid --rootfs local-lvm:25G
+    pct create $ctid local:vztmpl/debian-12-standard_12.0-1_amd64.tar.gz --hostname "lb0$(($i + 1)).local" --net0 name=eth0,bridge=vmbr0,ip=${lb_ip_array[$i]}/24 --memory 2048 --swap 512 --cores 2 --rootfs local-lvm:25G
+    pct set $ctid --tag "under-maintenance"
     
+    # Ensure DNS is configured
+    configure_dns $ctid
+
     # Install and configure HAProxy
+    pct start $ctid
     pct exec $ctid -- apt-get update
     pct exec $ctid -- apt-get install -y haproxy
     configure_haproxy $ctid "${ns_ip_array[@]}"
     
+    # Update tag to "LBNS"
+    pct set $ctid --tag "LBNS"
     echo "Load Balancer ${lb_ip_array[$i]} configured with HAProxy"
   done
 }
@@ -66,19 +103,24 @@ setup_name_servers() {
   echo "Setting up Name Servers..."
   for i in "${!ns_ip_array[@]}"; do
     local ctid=$((10010 + i))
+    if [ "$fresh_install" == "yes" ]; then
+      remove_existing_containers $ctid
+    fi
     echo "Configuring Name Server ${ns_ip_array[$i]} with CTID $ctid"
+    pct create $ctid local:vztmpl/debian-12-standard_12.0-1_amd64.tar.gz --hostname "ns0$(($i + 1)).local" --net0 name=eth0,bridge=vmbr0,ip=${ns_ip_array[$i]}/24 --memory 2048 --swap 512 --cores 2 --rootfs local-lvm:25G
+    pct set $ctid --tag "under-maintenance"
 
-    pct set $ctid --hostname "ns0$(($i + 1)).local"
-    pct set $ctid --net0 name=eth0,bridge=vmbr0,ip=${ns_ip_array[$i]}/24
-    pct set $ctid --memory 2048 --swap 512 --cores 2
-    pct set $ctid --rootfs local-lvm:25G
-    
+    # Ensure DNS is configured
+    configure_dns $ctid
+
     # Install Pi-hole and GravitySync
+    pct start $ctid
+    pct exec $ctid -- apt-get update
+    pct exec $ctid -- apt-get install -y curl
     pct exec $ctid -- bash -c "$(curl -sSL https://install.pi-hole.net)"
     pct exec $ctid -- bash -c "curl -sSL https://gravitysync.com/install.sh | bash"
     
     # Configure firewall to allow communication with load balancers
-    pct exec $ctid -- apt-get update
     pct exec $ctid -- apt-get install -y ufw
     pct exec $ctid -- ufw allow 22/tcp
     pct exec $ctid -- ufw allow 53/tcp
@@ -87,6 +129,8 @@ setup_name_servers() {
     done
     pct exec $ctid -- ufw enable
     
+    # Update tag to "NS"
+    pct set $ctid --tag "NS"
     echo "Name Server ${ns_ip_array[$i]} configured with Pi-hole, GravitySync, and firewall rules"
   done
 }
