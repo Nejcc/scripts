@@ -3,6 +3,7 @@
 # Variables
 BRIDGE="vmbr0"     # Network bridge to use
 CONFIG_FILE="ct_config.txt"
+PRESET_DIR="./presets"  # Directory to store preset configuration files
 
 # Function to create a container
 create_container() {
@@ -78,9 +79,72 @@ find_next_available_ip() {
     echo "${IP1}.${IP2}.${IP3}.${IP4}/${SUBNET}"
 }
 
+# Function to update and upgrade the container
+update_and_upgrade() {
+    local CTID=$1
+    echo "Updating and upgrading container $CTID..."
+    pct exec $CTID -- bash -c "apt-get update && apt-get upgrade -y"
+}
+
+# Function to setup firewall
+setup_firewall() {
+    local CTID=$1
+    echo "Setting up firewall for container $CTID..."
+    pct exec $CTID -- bash -c "apt-get install -y ufw && ufw default deny incoming && ufw default allow outgoing && ufw allow ssh && ufw enable"
+}
+
+# Function to load preset configuration
+load_preset_configuration() {
+    local PRESET=$1
+    local PRESET_FILE="$PRESET_DIR/$PRESET.txt"
+
+    if [ -f $PRESET_FILE ]; then
+        echo "Loading preset configuration from $PRESET_FILE..."
+        source $PRESET_FILE
+    else
+        echo "Preset configuration file $PRESET_FILE not found. Using default values."
+    fi
+}
+
 # Main function
 main() {
     load_configuration
+
+    echo "Choose the type of container you want to set up:"
+    echo "1. LB NS (Load balance for NS (pihole))"
+    echo "2. NS (pihole) + ask for gravity-sync to be setup on servers (1,2,3,4 combinations)"
+    echo "3. Grafana"
+    echo "4. Prometheus"
+    echo "5. Web server"
+    echo "6. Clean setup"
+    read -rp "Enter the number of your choice: " CHOICE
+
+    case $CHOICE in
+        1)
+            PRESET="lb_ns"
+            ;;
+        2)
+            PRESET="ns_pihole"
+            ;;
+        3)
+            PRESET="grafana"
+            ;;
+        4)
+            PRESET="prometheus"
+            ;;
+        5)
+            PRESET="web_server"
+            ;;
+        6)
+            PRESET="clean_setup"
+            ;;
+        *)
+            echo "Invalid choice. Exiting."
+            exit 1
+            ;;
+    esac
+
+    load_preset_configuration $PRESET
 
     # Prompt for the common parameters with defaults
     read -rp "Enter the nameserver prefix (e.g., lb): " PREFIX
@@ -88,15 +152,15 @@ main() {
     NUM_CONTAINERS=${NUM_CONTAINERS:-1}
     read -rp "Enter the domain name (e.g., .local, default .local): " DOMAIN
     DOMAIN=${DOMAIN:-.local}
-    read -rp "Enter the memory size in MB for each container (default 2048): " MEMORY
+    read -rp "Enter the memory size in MB for each container (default $MEMORY): " MEMORY
     MEMORY=${MEMORY:-2048}
-    read -rp "Enter the SWAP size in MB for each container (default 512): " SWAP
+    read -rp "Enter the SWAP size in MB for each container (default $SWAP): " SWAP
     SWAP=${SWAP:-512}
-    read -rp "Enter the number of cores for each container (default 2): " CORES
+    read -rp "Enter the number of cores for each container (default $CORES): " CORES
     CORES=${CORES:-2}
-    read -rp "Enter the disk size for each container (default 25): " DISK_SIZE
+    read -rp "Enter the disk size for each container (default $DISK_SIZE): " DISK_SIZE
     DISK_SIZE=${DISK_SIZE:-25}
-    read -rp "Enter the storage pool (e.g., local-lvm, default local-lvm): " STORAGE
+    read -rp "Enter the storage pool (e.g., local-lvm, default $STORAGE): " STORAGE
     STORAGE=${STORAGE:-local-lvm}
     read -rp "Should the IP be set to DHCP? (yes/no): " DHCP_IP
     read -rsp "Enter the password for the containers: " PASSWORD
@@ -160,6 +224,22 @@ main() {
             echo "Starting container $CTID..."
             pct start $CTID
         done
+
+        read -rp "Do you want to update and upgrade the containers? (yes/no): " UPDATE_CONTAINERS
+        if [[ "$UPDATE_CONTAINERS" == "yes" ]]; then
+            for ((i=0; i<NUM_CONTAINERS; i++)); do
+                CTID=$((10000 + i))
+                update_and_upgrade $CTID
+            done
+        fi
+
+        read -rp "Do you want to setup firewall on the containers? (yes/no): " SETUP_FIREWALL
+        if [[ "$SETUP_FIREWALL" == "yes" ]]; then
+            for ((i=0; i<NUM_CONTAINERS; i++)); do
+                CTID=$((10000 + i))
+                setup_firewall $CTID
+            done
+        fi
     fi
 }
 
