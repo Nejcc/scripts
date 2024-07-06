@@ -27,6 +27,7 @@ lb_ips=$(prompt_with_default "Provide IP list of load balancers (comma-separated
 num_ns=$(prompt_with_default "How many name servers (NS) do you have" "4")
 ns_ips=$(prompt_with_default "Provide IP list of name servers (space-separated)" "192.168.1.20 192.168.1.21 192.168.1.22 192.168.1.23")
 fresh_install=$(prompt_yes_no "Do you want to perform a fresh install of HAProxy, Pi-hole, and GravitySync?")
+lb_config=$(prompt_with_default "Choose Load Balancer configuration: 1. One LB with 2 NS 2. One LB with 4 NS" "1")
 
 # Convert IP lists to arrays
 IFS=',' read -r -a lb_ip_array <<< "$lb_ips"
@@ -98,12 +99,21 @@ setup_load_balancers() {
     # Ensure DNS is configured
     configure_dns $ctid
 
+    # Determine which NS IPs to use based on configuration
+    if [ "$lb_config" == "1" ]; then
+      # One LB with 2 NS
+      ns_subset=("${ns_ip_array[@]:0:2}")
+    else
+      # One LB with 4 NS
+      ns_subset=("${ns_ip_array[@]}")
+    fi
+
     # Install and configure HAProxy
     if [ "$fresh_install" == "yes" ]; then
       pct exec $ctid -- apt-get update --fix-missing || true
       install_or_reinstall_app $ctid "haproxy"
     fi
-    configure_haproxy $ctid "${ns_ip_array[@]}"
+    configure_haproxy $ctid "${ns_subset[@]}"
     
     # Update tag to "LBNS"
     pct set $ctid --tag "LBNS"
