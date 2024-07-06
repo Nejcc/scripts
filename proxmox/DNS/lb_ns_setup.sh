@@ -37,6 +37,8 @@ configure_dns() {
   local ctid=$1
   pct exec $ctid -- bash -c "echo 'nameserver 8.8.8.8' > /etc/resolv.conf"
   pct exec $ctid -- bash -c "echo 'nameserver 8.8.4.4' >> /etc/resolv.conf"
+  # Verify DNS resolution
+  pct exec $ctid -- ping -c 1 deb.debian.org
 }
 
 # Function to start a container if not running
@@ -88,8 +90,8 @@ setup_load_balancers() {
 
     # Install and configure HAProxy
     if [ "$fresh_install" == "yes" ]; then
-      pct exec $ctid -- apt-get update
-      pct exec $ctid -- apt-get install -y haproxy
+      pct exec $ctid -- apt-get update || true
+      pct exec $ctid -- apt-get install -y haproxy || true
     fi
     configure_haproxy $ctid "${ns_ip_array[@]}"
     
@@ -115,20 +117,20 @@ setup_name_servers() {
 
     # Install Pi-hole and GravitySync
     if [ "$fresh_install" == "yes" ]; then
-      pct exec $ctid -- apt-get update
-      pct exec $ctid -- apt-get install -y curl
-      pct exec $ctid -- bash -c "$(curl -sSL https://install.pi-hole.net)"
-      pct exec $ctid -- bash -c "curl -sSL https://gravitysync.com/install.sh | bash"
+      pct exec $ctid -- apt-get update || true
+      pct exec $ctid -- apt-get install -y curl || true
+      pct exec $ctid -- bash -c "$(curl -sSL https://install.pi-hole.net)" || true
+      pct exec $ctid -- bash -c "curl -sSL https://gravitysync.com/install.sh | bash" || true
     fi
     
     # Configure firewall to allow communication with load balancers
-    pct exec $ctid -- apt-get install -y ufw
-    pct exec $ctid -- ufw allow 22/tcp
-    pct exec $ctid -- ufw allow 53/tcp
+    pct exec $ctid -- apt-get install -y ufw || true
+    pct exec $ctid -- ufw allow 22/tcp || true
+    pct exec $ctid -- ufw allow 53/tcp || true
     for lb_ip in "${lb_ip_array[@]}"; do
-      pct exec $ctid -- ufw allow from $lb_ip
+      pct exec $ctid -- ufw allow from $lb_ip || true
     done
-    pct exec $ctid -- ufw enable
+    pct exec $ctid -- ufw enable || true
     
     # Update tag to "NS"
     pct set $ctid --tag "NS"
