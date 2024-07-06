@@ -45,7 +45,7 @@ configure_dns() {
 # Function to set the network gateway
 set_network_gateway() {
   local ctid=$1
-  pct set $ctid --net0 gw=192.168.1.1
+  pct set $ctid -net0 name=eth0,bridge=vmbr0,gw=192.168.1.1
 }
 
 # Function to start a container if not running
