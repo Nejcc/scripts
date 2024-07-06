@@ -84,6 +84,25 @@ install_or_reinstall_app() {
   pct exec $ctid -- apt-get install -y $app
 }
 
+# Function to install Pi-hole on a name server
+install_pihole() {
+  local ctid=$1
+  pct exec $ctid -- apt-get update --fix-missing
+  pct exec $ctid -- apt-get install -y curl
+  pct exec $ctid -- mkdir -p /etc/pihole
+  pct exec $ctid -- bash -c "$(curl -sSL https://install.pi-hole.net)"
+  pct exec $ctid -- systemctl enable pihole-FTL
+  pct exec $ctid -- systemctl start pihole-FTL
+}
+
+# Function to setup GravitySync on a name server
+install_gravitysync() {
+  local ctid=$1
+  pct exec $ctid -- apt-get update --fix-missing
+  pct exec $ctid -- apt-get install -y curl
+  pct exec $ctid -- bash -c "curl -sSL https://gravitysync.com/install.sh | bash"
+}
+
 # Function to install HAProxy on load balancers
 setup_load_balancers() {
   echo "Setting up Load Balancers..."
@@ -137,11 +156,8 @@ setup_name_servers() {
 
     # Install Pi-hole and GravitySync
     if [ "$fresh_install" == "yes" ]; then
-      pct exec $ctid -- apt-get update --fix-missing || true
-      install_or_reinstall_app $ctid "curl"
-      pct exec $ctid -- mkdir -p /etc/haproxy
-      pct exec $ctid -- bash -c "$(curl -sSL https://install.pi-hole.net)" || true
-      pct exec $ctid -- bash -c "curl -sSL https://gravitysync.com/install.sh | bash" || true
+      install_pihole $ctid
+      install_gravitysync $ctid
     fi
     
     # Configure firewall to allow communication with load balancers
