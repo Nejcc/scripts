@@ -18,7 +18,7 @@ ns_ips=$(prompt_with_default "Provide IP list of name servers (space-separated)"
 IFS=',' read -r -a lb_ip_array <<< "$lb_ips"
 IFS=' ' read -r -a ns_ip_array <<< "$ns_ips"
 
-# HAProxy configuration function
+# Function to configure HAProxy on a load balancer
 configure_haproxy() {
   local ctid=$1
   local ns_ips=("${@:2}")
@@ -42,8 +42,9 @@ $backend_config
 
 # Function to install and configure HAProxy on load balancers
 setup_load_balancers() {
+  echo "Setting up Load Balancers..."
   for i in "${!lb_ip_array[@]}"; do
-    local ctid=10000+$i
+    local ctid=$((10000 + i))
     echo "Configuring Load Balancer ${lb_ip_array[$i]} with CTID $ctid"
 
     pct set $ctid --hostname "lb0$(($i + 1)).local"
@@ -62,8 +63,9 @@ setup_load_balancers() {
 
 # Function to install Pi-hole and GravitySync on name servers
 setup_name_servers() {
+  echo "Setting up Name Servers..."
   for i in "${!ns_ip_array[@]}"; do
-    local ctid=10010+$i
+    local ctid=$((10010 + i))
     echo "Configuring Name Server ${ns_ip_array[$i]} with CTID $ctid"
 
     pct set $ctid --hostname "ns0$(($i + 1)).local"
