@@ -107,6 +107,7 @@ main() {
         if [[ "$AUTO_INCREMENT_IP" == "yes" ]]; then
             read -rp "Enter the initial IP address (e.g., 192.168.1.10/24): " INITIAL_IP
             IFS='/' read -r BASE_IP SUBNET <<< "$INITIAL_IP"
+            IP=$(find_next_available_ip "$BASE_IP" "$SUBNET")
         else
             read -rp "Enter the IP address for container 0 (e.g., 192.168.1.10/24): " IP
             if ! is_ip_available "${IP%/*}"; then
@@ -123,15 +124,11 @@ main() {
         CTID=$((10000 + i))
         HOSTNAME="${PREFIX}$(printf "%02d" $((i+1)))${DOMAIN}"
 
-        if [[ "$DHCP_IP" != "yes" && "$AUTO_INCREMENT_IP" == "yes" ]]; then
-            if [ $i -eq 0 ]; then
-                IP=$(find_next_available_ip "$BASE_IP" "$SUBNET")
-            else
-                IFS='.' read -r IP1 IP2 IP3 IP4 <<< "${IP%/*}"
-                IP4=$((IP4 + 1))
-                IP="${IP1}.${IP2}.${IP3}.${IP4}/${SUBNET}"
-                IP=$(find_next_available_ip "${IP%/*}" "$SUBNET")
-            fi
+        if [[ "$DHCP_IP" != "yes" && "$AUTO_INCREMENT_IP" == "yes" && "$i" -gt 0 ]]; then
+            IFS='.' read -r IP1 IP2 IP3 IP4 <<< "${IP%/*}"
+            IP4=$((IP4 + 1))
+            IP="${IP1}.${IP2}.${IP3}.${IP4}/${SUBNET}"
+            IP=$(find_next_available_ip "${IP%/*}" "$SUBNET")
         elif [[ "$DHCP_IP" != "yes" ]]; then
             read -rp "Enter the IP address for container $i (e.g., 192.168.1.10/24): " IP
             if ! is_ip_available "${IP%/*}"; then
