@@ -66,8 +66,8 @@ main() {
     SWAP=${SWAP:-512}
     read -rp "Enter the number of cores for each container (default 2): " CORES
     CORES=${CORES:-2}
-    read -rp "Enter the disk size for each container (default 25G): " DISK_SIZE
-    DISK_SIZE=${DISK_SIZE:-25G}
+    read -rp "Enter the disk size for each container (default 25): " DISK_SIZE
+    DISK_SIZE=${DISK_SIZE:-25}
     read -rp "Enter the storage pool (e.g., local-lvm): " STORAGE
     read -rp "Should the IP be set to DHCP? (yes/no): " DHCP_IP
 
@@ -88,7 +88,7 @@ main() {
     for ((i=0; i<NUM_CONTAINERS; i++)); do
         # Generate the CT ID, hostname, and IP address
         CTID=$((10000 + i))
-        HOSTNAME="${PREFIX}$(printf "%02d" $CTID)${DOMAIN}"
+        HOSTNAME="${PREFIX}$(printf "%02d" $((i+1)))${DOMAIN}"
         
         if [[ "$DHCP_IP" != "yes" && "$AUTO_INCREMENT_IP" == "yes" ]]; then
             IP="${IP1}.${IP2}.${IP3}.$((IP4 + i))/${SUBNET}"
