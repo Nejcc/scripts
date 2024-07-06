@@ -129,7 +129,7 @@ main() {
             IP4=$((IP4 + 1))
             IP="${IP1}.${IP2}.${IP3}.${IP4}/${SUBNET}"
             IP=$(find_next_available_ip "${IP%/*}" "$SUBNET")
-        elif [[ "$DHCP_IP" != "yes" ]]; then
+        elif [[ "$DHCP_IP" != "yes" && "$i" -gt 0 ]]; then
             read -rp "Enter the IP address for container $i (e.g., 192.168.1.10/24): " IP
             if ! is_ip_available "${IP%/*}"; then
                 echo "The IP address $IP is already in use. Please provide a different IP."
@@ -149,6 +149,15 @@ main() {
 
     echo -e "$CONFIG_SUMMARY"
     echo "All containers created successfully!"
+
+    read -rp "Do you want to start the created containers now? (yes/no): " START_CONTAINERS
+    if [[ "$START_CONTAINERS" == "yes" ]]; then
+        for ((i=0; i<NUM_CONTAINERS; i++)); do
+            CTID=$((10000 + i))
+            echo "Starting container $CTID..."
+            pct start $CTID
+        done
+    fi
 }
 
 # Run the main function
